@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Topics & Report Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        /* Оновлені шрифти з онлайн-джерел */
+        @font-face {
+            font-family: 'Cochineal';
+            src: url('https://github.com/CodenameXXV/report/raw/refs/heads/main/Cochineal.otf') format('opentype');
+        }
+        @font-face {
+            font-family: 'Involve';
+            src: url('https://github.com/CodenameXXV/report/raw/refs/heads/main/Involve.ttf') format('truetype');
+        }
+
+        :root {
+            --heading-font: 'Cochineal', serif;
+            --body-font: 'Involve', sans-serif;
+            --grammar-color: #5c181f; /* Бордовий */
+            --vocab-color: #e0949d;   /* Рожевий */
+            --bg-gradient-start: #fff4f4;
+            --bg-gradient-end: #fce8e8;
+            --surface-color: #ffffff;
+            --border-color: #f0d5d8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            min-height: 100vh; padding: 20px; line-height: 1.6; color: #333;
+        }
+        
+        .container {
+            max-width: 1200px; margin: 0 auto; background: var(--surface-color);
+            border-radius: 20px; box-shadow: 0 20px 60px rgba(92, 24, 31, 0.08);
+            overflow: hidden; animation: fadeIn 0.8s ease-out;
+            border: 1px solid var(--border-color);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--grammar-color) 0%, #8a3c42 100%);
+            color: white; padding: 15px 10px; text-align: center; position: relative;
+        }
+        
+        .data-controls {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .data-controls button {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white; font-size: 20px; cursor: pointer;
+            border-radius: 8px; width: 44px; height: 44px;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .data-controls button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .header h1 { 
+            font-size: 2.0em; margin-bottom: 5px; font-weight: 400; 
+            font-family: var(--heading-font); display: flex; 
+            align-items: center; justify-content: center; gap: 15px;
+        }
+        .app-logo { height: 45px; width: auto; object-fit: contain; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        
+        .main-content { padding: 30px; }
+
+        .top-controls {
+            display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px;
+        }
+
+        .control-section {
+            background: linear-gradient(135deg, #ffffff 0%, #fffafb 100%);
+            border-radius: 15px; padding: 15px; text-align: center; border: 1px solid var(--border-color);
+            flex: 1; min-width: 280px; box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+        }
+
+        .date-selectors {
+            display: flex; gap: 10px; justify-content: center; margin-top: 10px;
+        }
+
+        .control-section select, .control-section input[type="text"] {
+            padding: 12px 20px; font-size: 14px; border: 2px solid var(--border-color);
+            border-radius: 10px; background: white; cursor: pointer;
+            width: 100%; max-width: 250px; outline: none; transition: border-color 0.2s;
+            color: #4a4a4a; margin-top: 10px;
+        }
+        
+        .control-section select:focus { border-color: var(--vocab-color); }
+        
+        .student-controls-wrapper { display: flex; gap: 8px; justify-content: center; align-items: center; margin-top: 10px; }
+        .student-controls-wrapper select { margin-top: 0; max-width: 200px; flex: 1; }
+        .btn-small {
+            border: none; border-radius: 8px; width: 44px; height: 44px;
+            cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s; flex-shrink: 0;
+        }
+        .btn-add { background: var(--vocab-color); color: white; }
+        .btn-add:hover { background: #d37680; transform: translateY(-2px); }
+        .btn-del { background: #fdf2f3; border: 1px solid #f2dadd; color: #333; }
+        .btn-del:hover { background: #fce8e8; transform: translateY(-2px); border-color: var(--grammar-color); }
+
+        .level-selection-section h3 { color: var(--grammar-color); font-size: 18px; margin-bottom: 10px; }
+        
+        .level-buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+        .level-btn {
+            background: var(--vocab-color); color: white;
+            border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer;
+            font-size: 14px; font-weight: 600; transition: all 0.2s ease;
+        }
+        .level-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(224, 148, 157, 0.4); background: #d37680; }
+        .level-btn.active { background: var(--grammar-color); box-shadow: 0 4px 10px rgba(92, 24, 31, 0.3); }
+
+        .tag-search-wrapper { position: relative; width: 100%; max-width: 600px; margin: 0 auto 20px auto; }
+        .tag-search-input {
+            width: 100%; padding: 12px 20px 12px 50px; font-size: 14px;
+            border: 2px solid var(--vocab-color); border-radius: 25px; outline: none;
+            background: #fffdfd; color: #333; transition: border-color 0.2s;
+        }
+        .tag-search-input:focus { border-color: var(--grammar-color); }
+        .tag-search-icon {
+            position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
+            width: 20px; height: 20px; pointer-events: none;
+        }
+
+        .templates-section {
+            background: #fffafb; border-radius: 15px; padding: 20px;
+            margin-bottom: 25px; border: 1px solid var(--border-color); display: none;
+        }
+        .templates-section.show { display: block; }
+        .template-category { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 15px; }
+        
+        .template-btn {
+            background: #fdf2f3; color: #4a4a4a; border: 1px solid #f2dadd; padding: 6px 12px;
+            border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s;
+        }
+        .template-btn:hover { transform: translateY(-2px); box-shadow: 0 3px 8px rgba(224, 148, 157, 0.2); border-color: var(--vocab-color); }
+        .template-btn.used { background: var(--grammar-color) !important; color: white !important; border-color: var(--grammar-color); opacity: 0.9; }
+        .template-btn.learned { background: #81575b !important; color: white !important; border-color: #81575b; opacity: 0.7; }
+        .template-btn.vocabulary { background: #fae6e8; }
+        
+        .level-header {
+            background: var(--grammar-color); color: white; padding: 12px;
+            border-radius: 8px; margin-bottom: 15px; font-weight: 600; text-align: center; letter-spacing: 1px;
+        }
+
+        .preview-section {
+            background: #fdfafb; border-radius: 15px; padding: 20px; text-align: center;
+            border: 2px dashed #e4c7cb; margin-bottom: 30px;
+        }
+        
+        #scaler-wrapper {
+            width: 100%; max-width: 550px;
+            margin: 0 auto; overflow: hidden; background: #2d2627;
+            border-radius: 15px; padding: 20px 0; display: flex;
+            flex-direction: column; align-items: center;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        #scaler-container {
+            transform-origin: top center; transition: transform 0.1s ease-out;
+            display: flex; justify-content: center; align-items: flex-start;
+        }
+
+        .report-canvas {
+            width: 1000px; height: 1776px;
+            background-image: url('https://raw.githubusercontent.com/CodenameXXV/report/refs/heads/main/GT.png');
+            background-size: 100% 100%; position: relative;
+            background-color: #fff4f4; flex-shrink: 0;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5); text-align: left;
+        }
+
+        [contenteditable="true"] { transition: background 0.2s; border-radius: 4px; }
+        [contenteditable="true"]:hover { background: rgba(255, 255, 255, 0.6); box-shadow: 0 0 0 4px rgba(255,255,255,0.6); }
+        [contenteditable="true"]:focus { outline: 2px dashed var(--vocab-color); background: rgba(255, 255, 255, 0.9); }
+
+        .student-name {
+            position: absolute; top: 13.2%; left: 8.5%;
+            font-family: var(--heading-font);
+            font-size: 48px; 
+            color: var(--grammar-color); text-transform: uppercase;
+            border-bottom: 2px solid var(--grammar-color);
+            line-height: 1.1; padding-bottom: 1px;
+            display: inline-block; white-space: nowrap; max-width: 450px;
+            overflow: hidden;
+        }
+
+        .dynamic-content {
+            position: absolute; top: 22%; left: 8.5%; width: 83%;
+            max-height: 1150px; display: flex; flex-direction: column;
+            align-items: flex-start; overflow: hidden;
+        }
+
+        .topic-header {
+            position: relative; display: inline-block; margin-bottom: 24px;
+            padding: 8px 24px; font-family: var(--heading-font); font-size: 32px;
+        }
+        .topic-header.grammar { color: var(--grammar-color); border: 2px dashed var(--grammar-color); }
+        .topic-header.vocab { color: var(--vocab-color); border: 2px dashed var(--vocab-color); margin-top: 50px; }
+        
+        .corner { position: absolute; width: 10px; height: 10px; }
+        .grammar .corner { background-color: var(--grammar-color); }
+        .vocab .corner { background-color: var(--vocab-color); }
+        .top-left { top: -6px; left: -6px; } .top-right { top: -6px; right: -6px; }
+        .bottom-left { bottom: -6px; left: -6px; } .bottom-right { bottom: -6px; right: -6px; }
+
+        ol.list-container {
+            font-family: var(--body-font);
+            font-size: 27px; line-height: 1.4;
+            color: #2b1618; padding-left: 40px; width: 100%; margin: 0; min-height: 40px;
+        }
+        .list-container li { margin-bottom: 8px; }
+
+        .month-container {
+            position: absolute; bottom: 3.5%; right: 8.5%;
+            width: 400px; color: var(--grammar-color);
+            display: flex; flex-direction: column; align-items: flex-end;
+        }
+        .month-label { 
+            font-family: var(--body-font); font-size: 28px; 
+            margin-bottom: -5px; padding-right: 5px;
+        }
+        
+		.month-value { 
+			font-family: var(--heading-font);
+			font-size: 40px; font-weight: bold; text-transform: uppercase; 
+			white-space: nowrap; overflow: hidden; display: inline-block;
+			max-width: 100%; text-align: right;
+		}
+
+        .action-buttons { margin-top: 20px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
+        .btn {
+            color: white; border: none; padding: 12px 25px; border-radius: 10px;
+            cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.3s ease;
+        }
+        .btn-png { background: linear-gradient(135deg, var(--grammar-color), #8a3c42); }
+        .btn-pdf { background: linear-gradient(135deg, #d37680, var(--vocab-color)); }
+        .btn-clear { background: linear-gradient(135deg, #8b797b, #6b5c5e); }
+        .btn:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(92, 24, 31, 0.25); }
+
+        .progress-section {
+            background: #ffffff; border-radius: 15px; padding: 25px; margin-top: 10px;
+            border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(92, 24, 31, 0.05);
+            text-align: center;
+        }
+        .progress-section h3 { color: var(--grammar-color); font-size: 20px; margin-bottom: 15px; font-family: var(--heading-font); }
+        .progress-bar-container {
+            width: 100%; max-width: 800px; margin: 0 auto; background: var(--bg-gradient-end);
+            border-radius: 20px; height: 28px; overflow: hidden; position: relative;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .progress-bar-fill {
+            height: 100%; background: linear-gradient(90deg, var(--vocab-color), var(--grammar-color));
+            width: 0%; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); display: flex;
+            align-items: center; justify-content: center; color: white; font-size: 13px;
+            font-weight: bold; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        @media (max-width: 768px) {
+            .top-controls { flex-direction: column; }
+            #scaler-wrapper { max-width: 100%; }
+            .data-controls { position: static; justify-content: center; margin-bottom: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="data-controls">
+                <button onclick="importData()" title="Завантажити з файлу (Імпорт)">📥</button>
+                <button onclick="exportData()" title="Зберегти у файл (Експорт)">💾</button>
+            </div>
+            <h1>
+                <img src="https://raw.githubusercontent.com/CodenameXXV/report/refs/heads/main/LOGO.png" alt="Logo" class="app-logo">
+                English Topics & Report Generator
+            </h1>
+        </div>
+        <div class="main-content">
+            
+            <div class="top-controls">
+                <div class="control-section">
+                    <label><strong>🗓️ Оберіть період звіту:</strong></label><br>
+                    <div class="date-selectors">
+                        <select id="month" onchange="syncDate()">
+                            <option value="January">January</option><option value="February">February</option>
+                            <option value="March">March</option><option value="April">April</option>
+                            <option value="May">May</option><option value="June">June</option>
+                            <option value="July">July</option><option value="August">August</option>
+                            <option value="September">September</option><option value="October">October</option>
+                            <option value="November">November</option><option value="December">December</option>
+                        </select>
+                        <select id="year" onchange="syncDate()">
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                            <option value="2027">2027</option>
+                            <option value="2028">2028</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <label><strong>🎓 Оберіть або додайте учня:</strong></label><br>
+                    <div class="student-controls-wrapper">
+                        <select id="student-select" onchange="changeStudent()"></select>
+                        <button class="btn-small btn-add" onclick="addStudent()" title="Додати нового учня">➕</button>
+                        <button class="btn-small btn-del" onclick="deleteStudent()" title="Видалити поточного учня">🗑️</button>
+                    </div>
+                </div>
+
+                <div class="control-section level-selection-section">
+                    <h3>🎯 Оберіть рівень</h3>
+                    <div class="level-buttons">
+                        <button class="level-btn" onclick="selectLevel('A1')">A1</button>
+                        <button class="level-btn" onclick="selectLevel('A2')">A2</button>
+                        <button class="level-btn" onclick="selectLevel('B1')">B1</button>
+                        <button class="level-btn" onclick="selectLevel('B2')">B2</button>
+                        <button class="level-btn" onclick="selectLevel('C1')">C1</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tag-search-wrapper">
+                <div class="tag-search-icon">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="11" cy="11" r="7" stroke="#e0949d" stroke-width="2"/>
+                        <path d="m20 20-4.35-4.35" stroke="#5c181f" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <input type="text" class="tag-search-input" id="tag-search-input" placeholder="Шукати теми..." oninput="filterTopics(this.value)">
+            </div>
+
+            <div id="templates-section" class="templates-section show">
+                <div id="templates-content"></div>
+            </div>
+
+            <div class="preview-section">
+                
+                <div id="scaler-wrapper">
+                    <div id="scaler-container">
+                        <div id="report-to-print" class="report-canvas">
+                            <div class="student-name" id="student-name" contenteditable="true">STUDENT NAME</div>
+
+                            <div class="dynamic-content" id="main-content-canvas">
+                                <div class="topic-header grammar">GRAMMAR TOPICS
+                                    <div class="corner top-left"></div><div class="corner top-right"></div>
+                                    <div class="corner bottom-left"></div><div class="corner bottom-right"></div>
+                                </div>
+                                <ol class="list-container" id="grammar-list" contenteditable="true"><li></li></ol>
+
+                                <div id="vocab-header" class="topic-header vocab">VOCABULARY TOPICS
+                                    <div class="corner top-left"></div><div class="corner top-right"></div>
+                                    <div class="corner bottom-left"></div><div class="corner bottom-right"></div>
+                                </div>
+                                <ol class="list-container" id="vocab-list" contenteditable="true"><li></li></ol>
+                            </div>
+
+                            <div class="month-container">
+                                <div class="month-label">Month</div>
+                                <div id="month-input" class="month-value" contenteditable="true">MONTH YEAR</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-clear" onclick="clearTemplate()">🗑️ Очистити</button>
+                    <button class="btn btn-png" onclick="downloadPNG()">🖼️ Зберегти PNG</button>
+                    <button class="btn btn-pdf" onclick="downloadPDF()">📑 Зберегти PDF</button>
+                </div>
+            </div>
+
+            <div class="progress-section">
+                <h3>📊 Прогрес рівня <span id="progress-level-label">A1</span> (<span id="progress-student-label"></span>)</h3>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" id="progress-bar-fill">0%</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let templatesData = {};
+
+        async function loadExternalData() {
+            try {
+                const [grammarRes, vocabRes] = await Promise.all([
+                    fetch('https://raw.githubusercontent.com/CodenameXXV/report/main/grammar.json'),
+                    fetch('https://raw.githubusercontent.com/CodenameXXV/report/main/vocabulary.json')
+                ]);
+                const grammarData = await grammarRes.json();
+                const vocabData = await vocabRes.json();
+                
+                const levels = ['A1', 'A2', 'B1', 'B2', 'C1'];
+                levels.forEach(level => {
+                    templatesData[level] = {
+                        grammar: grammarData[level] || [],
+                        vocabulary: vocabData[level] || []
+                    };
+                });
+            } catch (error) {
+                console.error('Помилка завантаження даних:', error);
+                alert(`Не вдалося завантажити дані граматики та лексики. Перевірте з'єднання з інтернетом.`);
+            }
+        }
+
+        let appData = JSON.parse(localStorage.getItem('englishReportData_v2'));
+        if (!appData) {
+            appData = {
+                students: ["Student Name"],
+                currentStudent: "Student Name",
+                records: {},
+                studentLevels: { "Student Name": "A1" }
+            };
+        }
+
+        let currentLevel = appData.studentLevels[appData.currentStudent] || 'A1';
+
+        window.onload = async function() {
+            await loadExternalData();
+            const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
+            const currentYearStr = new Date().getFullYear().toString();
+            document.getElementById('month').value = currentMonth;
+            document.getElementById('year').value = currentYearStr;
+            renderStudentSelect();
+            selectLevel(appData.studentLevels[appData.currentStudent] || 'A1', true);
+            syncDate(); 
+            resizePreview();
+            window.addEventListener('resize', resizePreview);
+            setupCanvasListeners();
+        };
+
+        function saveDB() {
+            localStorage.setItem('englishReportData_v2', JSON.stringify(appData));
+        }
+
+        function exportData() {
+            const dataStr = JSON.stringify(appData, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'EnglishReport_Backup.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/json';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const parsed = JSON.parse(event.target.result);
+                        if (parsed && parsed.students && parsed.records) {
+                            appData = parsed;
+                            saveDB();
+                            location.reload(); 
+                        }
+                    } catch (err) { alert("Помилка файлу"); }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        function renderStudentSelect() {
+            const select = document.getElementById('student-select');
+            select.innerHTML = '';
+            appData.students.forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name; opt.textContent = name;
+                select.appendChild(opt);
+            });
+            select.value = appData.currentStudent;
+            document.getElementById('student-name').textContent = appData.currentStudent;
+            document.getElementById('progress-student-label').textContent = appData.currentStudent;
+            adjustNameFontSize();
+        }
+
+        function changeStudent() {
+            const select = document.getElementById('student-select');
+            appData.currentStudent = select.value;
+            renderStudentSelect(); 
+            const savedLevel = appData.studentLevels[appData.currentStudent] || 'A1';
+            selectLevel(savedLevel, true);
+            syncDate();
+            saveDB();
+        }
+
+        function addStudent() {
+            const name = prompt("Введіть ім'я учня:");
+            if (name && name.trim() !== '') {
+                const trimmedName = name.trim();
+                if (!appData.students.includes(trimmedName)) {
+                    appData.students.push(trimmedName);
+                    appData.records[trimmedName] = {};
+                    appData.studentLevels[trimmedName] = 'A1';
+                }
+                appData.currentStudent = trimmedName;
+                renderStudentSelect();
+                selectLevel('A1');
+                syncDate();
+                saveDB();
+            }
+        }
+
+        function deleteStudent() {
+            if (appData.students.length <= 1) return;
+            if (confirm(`Видалити "${appData.currentStudent}"?`)) {
+                appData.students = appData.students.filter(s => s !== appData.currentStudent);
+                delete appData.records[appData.currentStudent];
+                delete appData.studentLevels[appData.currentStudent];
+                appData.currentStudent = appData.students[0];
+                renderStudentSelect();
+                selectLevel(appData.studentLevels[appData.currentStudent] || 'A1', true);
+                syncDate();
+                saveDB();
+            }
+        }
+
+        function getPeriodKey() {
+            return `${document.getElementById('month').value}-${document.getElementById('year').value}`;
+        }
+
+        function selectLevel(level, preventSave = false) {
+            currentLevel = level;
+            document.querySelectorAll('.level-btn').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = Array.from(document.querySelectorAll('.level-btn')).find(b => b.textContent === level);
+            if(activeBtn) activeBtn.classList.add('active');
+            if (!preventSave) {
+                appData.studentLevels[appData.currentStudent] = level;
+                saveDB();
+            }
+            loadTemplatesForLevel(level);
+            syncTemplateButtonStates();
+            updateProgressBar();
+        }
+
+        function getFlatItems(sectionData) {
+            if (Array.isArray(sectionData)) return sectionData;
+            if (typeof sectionData === 'object' && sectionData !== null) {
+                return Object.values(sectionData).flat();
+            }
+            return [];
+        }
+
+        function loadTemplatesForLevel(level) {
+            const templatesContent = document.getElementById('templates-content');
+            const data = templatesData[level];
+            if (!data) return;
+            
+            let html = `<div class="level-header">📚 ${level} LEVEL TEMPLATES</div>`;
+            
+            const renderSection = (title, sectionData, type, cssClass) => {
+                let sectionHtml = `<h4 style="color: var(--${type}-color); margin: 15px 0 10px; font-family: var(--heading-font);">${title}</h4>`;
+                
+                if (Array.isArray(sectionData)) {
+                    sectionHtml += `<div class="template-category">`;
+                    sectionData.forEach((t) => {
+                        sectionHtml += `<button class="template-btn ${cssClass}" data-type="${type}" data-template="${t.replace(/"/g, '&quot;')}">${t.split(' — ')[0]}</button>`;
+                    });
+                    sectionHtml += `</div>`;
+                } else if (typeof sectionData === 'object' && sectionData !== null) {
+                    for (const [categoryName, items] of Object.entries(sectionData)) {
+                        sectionHtml += `<div style="font-weight: bold; margin-bottom: 5px; font-size: 14px; color: #555; text-align: left; padding-left: 10px;">${categoryName}</div>`;
+                        sectionHtml += `<div class="template-category">`;
+                        items.forEach((t) => {
+                            sectionHtml += `<button class="template-btn ${cssClass}" data-type="${type}" data-template="${t.replace(/"/g, '&quot;')}">${t.split(' — ')[0]}</button>`;
+                        });
+                        sectionHtml += `</div>`;
+                    }
+                }
+                return sectionHtml;
+            };
+
+            html += renderSection('Grammar', data.grammar, 'grammar', 'grammar');
+            html += renderSection('Vocabulary', data.vocabulary, 'vocab', 'vocabulary');
+            
+            templatesContent.innerHTML = html;
+            document.querySelectorAll('.template-btn').forEach(btn => {
+                btn.addEventListener('click', function() { toggleTemplateOnCanvas(this.dataset.type, this.dataset.template); });
+            });
+        }
+
+        function filterTopics(query) {
+            const q = query.toLowerCase().trim();
+            document.querySelectorAll('.template-btn').forEach(btn => {
+                btn.style.display = (q === '' || btn.dataset.template.toLowerCase().includes(q)) ? '' : 'none';
+            });
+        }
+
+        function syncDate() {
+            const m = document.getElementById('month').value;
+            const y = document.getElementById('year').value;
+            loadPeriodState(getPeriodKey());
+            const node = document.getElementById('month-input');
+            node.textContent = `${m}`;
+            adjustMonthFontSize();
+        }
+
+        function adjustMonthFontSize() {
+            const node = document.getElementById('month-input');
+            let s = 40; node.style.fontSize = s + 'px';
+            while (node.scrollWidth > 400 && s > 12) { s -= 2; node.style.fontSize = s + 'px'; }
+        }
+
+        function adjustNameFontSize() {
+            const node = document.getElementById('student-name');
+            let s = 48; node.style.fontSize = s + 'px';
+            while (node.scrollWidth > 450 && s > 12) { s -= 1; node.style.fontSize = s + 'px'; }
+        }
+
+        function toggleTemplateOnCanvas(type, text) {
+            const list = document.getElementById(type === 'grammar' ? 'grammar-list' : 'vocab-list');
+            let items = Array.from(list.querySelectorAll('li'));
+            let existing = items.find(li => li.textContent.trim() === text);
+            if (existing) {
+                existing.remove();
+                if (list.children.length === 0) list.innerHTML = '<li></li>';
+            } else {
+                if (list.children.length === 1 && list.children[0].textContent.trim() === '') list.innerHTML = '';
+                const li = document.createElement('li'); li.textContent = text;
+                list.appendChild(li);
+            }
+            onCanvasChanged();
+        }
+
+        function clearTemplate() {
+            document.getElementById('grammar-list').innerHTML = '<li></li>';
+            document.getElementById('vocab-list').innerHTML = '<li></li>';
+            onCanvasChanged();
+        }
+
+        function setupCanvasListeners() {
+            const canvasContent = document.getElementById('main-content-canvas');
+            const nameNode = document.getElementById('student-name');
+            const monthNode = document.getElementById('month-input');
+            canvasContent.addEventListener('input', onCanvasChanged);
+            nameNode.addEventListener('input', adjustNameFontSize);
+            nameNode.addEventListener('blur', (e) => {
+                const n = e.target.textContent.trim() || "Student Name";
+                if (n !== appData.currentStudent) {
+                    const idx = appData.students.indexOf(appData.currentStudent);
+                    if (idx !== -1) appData.students[idx] = n;
+                    appData.records[n] = appData.records[appData.currentStudent];
+                    delete appData.records[appData.currentStudent];
+                    appData.studentLevels[n] = appData.studentLevels[appData.currentStudent];
+                    delete appData.studentLevels[appData.currentStudent];
+                    appData.currentStudent = n;
+                    renderStudentSelect(); saveDB();
+                }
+            });
+            monthNode.addEventListener('input', adjustMonthFontSize);
+        }
+
+        function onCanvasChanged() {
+            autoScaleContent();
+            syncTemplateButtonStates();
+            saveCurrentPeriodState();
+            updateProgressBar();
+        }
+
+        function syncTemplateButtonStates() {
+            const all = Array.from(document.querySelectorAll('.list-container li')).map(li => li.textContent.trim());
+            const currentPeriod = getPeriodKey();
+            
+            // Get all learned items from previous periods
+            let learnedInPast = new Set();
+            const studentRecords = appData.records[appData.currentStudent] || {};
+            
+            for (const [periodKey, record] of Object.entries(studentRecords)) {
+                if (periodKey !== currentPeriod) {
+                    (record.grammar || []).forEach(t => learnedInPast.add(t));
+                    (record.vocabulary || []).forEach(t => learnedInPast.add(t));
+                }
+            }
+
+            document.querySelectorAll('.template-btn').forEach(btn => {
+                const isCurrentlyUsed = all.includes(btn.dataset.template);
+                const wasLearnedBefore = learnedInPast.has(btn.dataset.template);
+                
+                btn.classList.toggle('used', isCurrentlyUsed);
+                
+                // Only mark as learned (dim) if it's not currently used, but was used in the past
+                btn.classList.toggle('learned', !isCurrentlyUsed && wasLearnedBefore);
+            });
+        }
+
+        function autoScaleContent() {
+            const box = document.getElementById('main-content-canvas');
+            const vh = document.getElementById('vocab-header');
+            const heads = document.querySelectorAll('.topic-header');
+            const lists = document.querySelectorAll('.list-container');
+            let h = 48, t = 38, m = 80;
+            const apply = (hs, ts, ms) => {
+                heads.forEach(el => el.style.fontSize = hs + 'px');
+                lists.forEach(el => el.style.fontSize = ts + 'px');
+                vh.style.marginTop = ms + 'px';
+            };
+            apply(h, t, m);
+            if (box.scrollHeight > 1150) { h = 32; t = 27; m = 50; apply(h, t, m); }
+            while (box.scrollHeight > 1150 && t > 14) { t -= 1; if (h > 24) h -= 0.5; if (m > 20) m -= 2; apply(h, t, m); }
+        }
+
+        function resizePreview() {
+            const w = document.getElementById('scaler-wrapper');
+            const s = document.getElementById('scaler-container');
+            const scale = Math.min(w.clientWidth / 1000, 1);
+            s.style.transform = `scale(${scale})`;
+            w.style.height = `${(1776 * scale) + 40}px`;
+        }
+
+        function saveCurrentPeriodState() {
+            const k = getPeriodKey();
+            const g = Array.from(document.querySelectorAll('#grammar-list li')).map(li => li.textContent.trim()).filter(x => x);
+            const v = Array.from(document.querySelectorAll('#vocab-list li')).map(li => li.textContent.trim()).filter(x => x);
+            if (!appData.records[appData.currentStudent]) appData.records[appData.currentStudent] = {};
+            appData.records[appData.currentStudent][k] = { grammar: g, vocabulary: v };
+            saveDB();
+        }
+
+        function loadPeriodState(k) {
+            const d = (appData.records[appData.currentStudent] || {})[k] || { grammar: [], vocabulary: [] };
+            const pop = (id, items) => {
+                const l = document.getElementById(id); l.innerHTML = items.length ? '' : '<li></li>';
+                items.forEach(txt => { const li = document.createElement('li'); li.textContent = txt; l.appendChild(li); });
+            };
+            pop('grammar-list', d.grammar); pop('vocab-list', d.vocabulary);
+            onCanvasChanged();
+        }
+
+        function updateProgressBar() {
+            const flatGrammar = getFlatItems(templatesData[currentLevel].grammar);
+            const total = flatGrammar.length;
+            let learned = new Set();
+            Object.values(appData.records[appData.currentStudent] || {}).forEach(rec => {
+                (rec.grammar || []).forEach(t => { if (flatGrammar.includes(t)) learned.add(t); });
+            });
+            const p = total > 0 ? Math.round((learned.size / total) * 100) : 0;
+            const fill = document.getElementById('progress-bar-fill');
+            fill.style.width = p + '%';
+            fill.textContent = p > 5 ? `${p}% (${learned.size}/${total})` : '';
+            document.getElementById('progress-level-label').textContent = currentLevel;
+        }
+
+        function downloadPDF() {
+            const element = document.getElementById('report-to-print');
+            const opt = {
+                margin: 0, filename: `Report_${appData.currentStudent}.pdf`,
+                image: { type: 'jpeg', quality: 1.0 },
+                html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowY: 0, onclone: (d) => {
+                    d.getElementById('scaler-container').style.transform = 'none';
+                }},
+                jsPDF: { unit: 'px', format: [1000, 1776], orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(element).save();
+        }
+
+        async function downloadPNG() {
+            const element = document.getElementById('report-to-print');
+            try {
+                const canvas = await html2canvas(element, { scale: 3, useCORS: true, scrollY: 0, windowY: 0, onclone: (d) => {
+                    d.getElementById('scaler-container').style.transform = 'none';
+                }});
+                const link = document.createElement('a');
+                link.download = `Report_${appData.currentStudent}.png`;
+                link.href = canvas.toDataURL("image/png", 1.0); link.click();
+            } catch (err) { alert("Помилка PNG"); }
+        }
+    </script>
+</body>
+</html>
