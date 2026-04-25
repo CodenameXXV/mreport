@@ -533,7 +533,7 @@
             const bH = 1776;
             const sX = scalerWrapper.clientWidth / bW;
             const sY = (window.innerHeight - 150) / bH;
-            const scale = Math.min(sX, sY, 0.8);
+            const scale = Math.min(sX, 0.5);
             wrapper.style.transform = `scale(${scale})`;
             scalerWrapper.style.height = `${bH * scale + 40}px`;
         }
