@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>English Topics & Report Generator</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         /* Шрифти */
         @font-face {
@@ -210,7 +209,6 @@
             cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.3s ease;
         }
         .btn-png { background: linear-gradient(135deg, var(--grammar-color), #8a3c42); }
-        .btn-pdf { background: linear-gradient(135deg, #d37680, var(--vocab-color)); }
         .btn-clear { background: linear-gradient(135deg, #8b797b, #6b5c5e); }
 
         .progress-section {
@@ -281,6 +279,25 @@
             color: white;
         }
         .modal-btn-confirm:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(92, 24, 31, 0.35); }
+        .modal-btn-danger {
+            background: linear-gradient(135deg, #c0392b, #e74c3c);
+            color: white;
+        }
+        .modal-btn-danger:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(192, 57, 43, 0.4); }
+        .modal-icon-delete {
+            width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 50%;
+            background: linear-gradient(135deg, #fde8e8, #fdd);
+            display: flex; align-items: center; justify-content: center; font-size: 30px;
+        }
+        .modal-student-name {
+            font-family: var(--heading-font); font-size: 22px; color: var(--grammar-color);
+            text-align: center; margin: 12px 0 4px; word-break: break-word;
+        }
+        .modal-warning {
+            font-size: 13px; color: #b55; text-align: center;
+            background: #fdf2f3; border-radius: 8px; padding: 10px 14px; margin-top: 12px;
+            border: 1px solid #f2dadd;
+        }
 
     </style>
 </head>
@@ -386,7 +403,6 @@
                 <div class="action-buttons">
                     <button class="btn btn-clear" onclick="clearTemplate()">🗑️ Очистити</button>
                     <button class="btn btn-png" onclick="downloadPNG()">🖼️ Зберегти PNG</button>
-                    <button class="btn btn-pdf" onclick="downloadPDF()">📑 Зберегти PDF</button>
                 </div>
             </div>
 
@@ -434,6 +450,9 @@
                     if (e.key === 'Enter') confirmAddStudent();
                     if (e.key === 'Escape') closeAddStudentModal();
                 });
+            });
+            document.getElementById('delete-student-modal').addEventListener('click', function(e) {
+                if (e.target === this) closeDeleteStudentModal();
             });
 
             await loadExternalData();
@@ -525,16 +544,25 @@
 
         function deleteStudent() {
             if (appData.students.length <= 1) return;
-            if (confirm(`Видалити "${appData.currentStudent}"?`)) {
-                appData.students = appData.students.filter(s => s !== appData.currentStudent);
-                delete appData.records[appData.currentStudent]; delete appData.studentLevels[appData.currentStudent];
-                appData.currentStudent = appData.students[0];
-                renderStudentSelect(); selectLevel(appData.studentLevels[appData.currentStudent] || 'A1', true);
-                syncDateFromSelects(); saveDB();
-            }
+            document.getElementById('delete-student-name').textContent = appData.currentStudent;
+            const modal = document.getElementById('delete-student-modal');
+            modal.classList.add('active');
         }
 
-        function getPeriodKey() { return `${document.getElementById('month').value}-${document.getElementById('year').value}`; }
+        function closeDeleteStudentModal() {
+            document.getElementById('delete-student-modal').classList.remove('active');
+        }
+
+        function confirmDeleteStudent() {
+            appData.students = appData.students.filter(s => s !== appData.currentStudent);
+            delete appData.records[appData.currentStudent]; delete appData.studentLevels[appData.currentStudent];
+            appData.currentStudent = appData.students[0];
+            renderStudentSelect(); selectLevel(appData.studentLevels[appData.currentStudent] || 'A1', true);
+            syncDateFromSelects(); saveDB();
+            closeDeleteStudentModal();
+        }
+
+        function getPeriodKey() { return `${document.getElementById('month').value}-${document.getElementById('year').value}__${currentLevel}`; }
 
         function selectLevel(lvl, preventSave = false) {
             currentLevel = lvl;
@@ -542,6 +570,7 @@
             const active = Array.from(document.querySelectorAll('.level-btn')).find(b => b.textContent === lvl);
             if(active) active.classList.add('active');
             if (!preventSave) { appData.studentLevels[appData.currentStudent] = lvl; saveDB(); }
+            loadPeriodState(getPeriodKey());
             loadTemplatesForLevel(lvl); syncTemplateButtonStates(); updateProgressBar();
         }
 
@@ -681,9 +710,10 @@
         function syncTemplateButtonStates() {
             const all = Array.from(document.querySelectorAll('ol li')).map(li => li.textContent.trim());
             const curK = getPeriodKey();
+            const levelSuffix = `__${currentLevel}`;
             let past = new Set();
             for (const [pk, rec] of Object.entries(appData.records[appData.currentStudent] || {})) {
-                if (pk !== curK) { (rec.grammar || []).forEach(t => past.add(t)); (rec.vocabulary || []).forEach(t => past.add(t)); }
+                if (pk !== curK && pk.endsWith(levelSuffix)) { (rec.grammar || []).forEach(t => past.add(t)); (rec.vocabulary || []).forEach(t => past.add(t)); }
             }
             document.querySelectorAll('.template-btn').forEach(b => {
                 const isCur = all.includes(b.dataset.template);
@@ -694,10 +724,13 @@
 
         function updateProgressBar() {
             const flatG = Array.isArray(templatesData[currentLevel]?.grammar) ? templatesData[currentLevel].grammar : Object.values(templatesData[currentLevel]?.grammar || {}).flat();
+            const levelSuffix = `__${currentLevel}`;
             let learned = new Set();
-            Object.values(appData.records[appData.currentStudent] || {}).forEach(r => {
-                (r.grammar || []).forEach(t => { if (flatG.includes(t)) learned.add(t); });
-            });
+            for (const [pk, r] of Object.entries(appData.records[appData.currentStudent] || {})) {
+                if (pk.endsWith(levelSuffix)) {
+                    (r.grammar || []).forEach(t => { if (flatG.includes(t)) learned.add(t); });
+                }
+            }
             const p = flatG.length > 0 ? Math.round((learned.size / flatG.length) * 100) : 0;
             const fill = document.getElementById('progress-bar-fill');
             fill.style.width = p + '%'; fill.textContent = p > 5 ? `${p}% (${learned.size}/${flatG.length})` : '';
@@ -735,22 +768,6 @@
             wrapper.style.transform = trans;
         }
 
-        async function downloadPDF() {
-            const trans = wrapper.style.transform;
-            wrapper.style.transform = 'scale(1)';
-            await new Promise(r => setTimeout(r, 200));
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF({ unit: 'px', format: [1000, 1776] });
-            const c1 = await html2canvas(document.getElementById('page1'), { scale: 2, useCORS: true });
-            pdf.addImage(c1.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 1000, 1776);
-            if (page2.style.display !== 'none') {
-                pdf.addPage();
-                const c2 = await html2canvas(document.getElementById('page2'), { scale: 2, useCORS: true });
-                pdf.addImage(c2.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 1000, 1776);
-            }
-            pdf.save(`Report_${n1.innerText.trim()}.pdf`);
-            wrapper.style.transform = trans;
-        }
     </script>
     <!-- Модальне вікно додавання студента -->
     <div class="modal-overlay" id="add-student-modal">
@@ -770,6 +787,20 @@
             <div class="modal-actions">
                 <button class="modal-btn modal-btn-cancel" onclick="closeAddStudentModal()">Скасувати</button>
                 <button class="modal-btn modal-btn-confirm" onclick="confirmAddStudent()">Додати учня</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальне вікно видалення студента -->
+    <div class="modal-overlay" id="delete-student-modal">
+        <div class="modal-box">
+            <div class="modal-icon-delete">🗑️</div>
+            <div class="modal-title">Видалити учня?</div>
+            <div class="modal-student-name" id="delete-student-name"></div>
+            <div class="modal-warning">⚠️ Усі дані цього учня (обрані теми, прогрес) буде видалено без можливості відновлення.</div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" onclick="closeDeleteStudentModal()">Скасувати</button>
+                <button class="modal-btn modal-btn-danger" onclick="confirmDeleteStudent()">Видалити</button>
             </div>
         </div>
     </div>
