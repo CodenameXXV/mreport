@@ -485,9 +485,11 @@
                 s.appendChild(o);
             });
             s.value = appData.currentStudent;
-            n1.textContent = appData.currentStudent;
+            if (document.activeElement !== n1) {
+                n1.textContent = appData.currentStudent;
+                syncNamesAndAdjustSize();
+            }
             document.getElementById('progress-student-label').textContent = appData.currentStudent;
-            syncNamesAndAdjustSize();
         }
 
         function changeStudent() {
@@ -631,11 +633,73 @@
             onCanvasContentChanged();
         }
 
+        function setupListEditing(listEl) {
+            listEl.addEventListener('paste', function(e) {
+                e.preventDefault();
+                const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+                const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+                if (!lines.length) return;
+                const sel = window.getSelection();
+                let curLi = sel.anchorNode;
+                while (curLi && curLi.nodeName !== 'LI') curLi = curLi.parentNode;
+                if (!curLi || curLi.parentElement !== listEl) {
+                    lines.forEach(line => { const li = document.createElement('li'); li.textContent = line; listEl.appendChild(li); });
+                } else {
+                    curLi.textContent = lines[0];
+                    let ref = curLi;
+                    for (let i = 1; i < lines.length; i++) {
+                        const li = document.createElement('li'); li.textContent = lines[i];
+                        ref.after(li); ref = li;
+                    }
+                    const range = document.createRange();
+                    range.selectNodeContents(ref); range.collapse(false);
+                    sel.removeAllRanges(); sel.addRange(range);
+                }
+                onCanvasContentChanged();
+            });
+
+            listEl.addEventListener('keydown', function(e) {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                const sel = window.getSelection();
+                let curLi = sel.anchorNode;
+                while (curLi && curLi.nodeName !== 'LI') curLi = curLi.parentNode;
+                const li = document.createElement('li'); li.textContent = '';
+                if (curLi) { curLi.after(li); } else { listEl.appendChild(li); }
+                const range = document.createRange();
+                range.setStart(li, 0); range.collapse(true);
+                sel.removeAllRanges(); sel.addRange(range);
+                onCanvasContentChanged();
+            });
+
+            listEl.addEventListener('input', function() {
+                Array.from(listEl.children).forEach(child => {
+                    if (child.nodeName !== 'LI') {
+                        const li = document.createElement('li');
+                        li.textContent = child.textContent;
+                        listEl.replaceChild(li, child);
+                    }
+                });
+                if (listEl.children.length === 0) listEl.innerHTML = '<li></li>';
+                onCanvasContentChanged();
+            });
+        }
+
         function setupCanvasListeners() {
-            document.getElementById('grammar-list').addEventListener('input', onCanvasContentChanged);
-            document.getElementById('vocab-list').addEventListener('input', onCanvasContentChanged);
+            setupListEditing(document.getElementById('grammar-list'));
+            setupListEditing(document.getElementById('vocab-list'));
             n1.addEventListener('input', () => { syncNamesAndAdjustSize(); handleNameChangeInDB(); });
+            n1.addEventListener('paste', function(e) {
+                e.preventDefault();
+                const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+                document.execCommand('insertText', false, text);
+            });
             m1.addEventListener('input', () => { m2.innerText = m1.innerText; });
+            m1.addEventListener('paste', function(e) {
+                e.preventDefault();
+                const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+                document.execCommand('insertText', false, text);
+            });
         }
 
         function syncNamesAndAdjustSize() {
